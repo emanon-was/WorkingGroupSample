@@ -1,41 +1,51 @@
 (ns samples.stream3
-  (:require [clojure.java.io :as io]
-            [clojure.string  :as str]))
+  (:require [clojure.string  :as str])
+  (:use  [samples.stream1 :only [file-reader]]
+         [samples.stream2 :only [reader-seq printlst]]))
+
 
 ;;
-;; - with-openが邪魔
-;; - 遅延シーケンスのためwith-openの外側にreader-seqを返せない
-
-;;
-;; BufferedReaderを閉じる役割もreader-seqに内包する
+;; Stream2では扱いやすさがわかりにくかったので
+;; 各行をパースしてフィルターして表示させてみる
 ;;
 
-
-(defn file-reader [s]
-  (io/reader (io/file (io/resource s))))
-
-(defn reader-seq [r]
-  (let [line (.readLine r)]
-    (if line
-      (cons line (lazy-seq (reader-seq r)))
-      (.close r))))
+;; ========================================
+;;
+;; パースしてhashmapにする
+;;
+;; samples.stream3> (row-parse "2.9|Clojure|28.42|27.15|82052|2162")
+;; {:code "2162", :memory "82052", :time "27.15", :cpu "28.42", :source "Clojure", :bench "2.9"}
+;;
+;; ========================================
 
 (defn row-parse [l]
   (zipmap [:bench :source :cpu :time :memory :code]
           (str/split l #"\|")))
 
-(defn printlst [lst]
-  (doseq [x lst]
-    (println x)))
+
+
+;; ========================================
+;;
+;; sourceが"Clojure"の行を取り出して表示する
+;;
+;; samples.stream3> (printfile "test.txt")
+;; {:code 2162, :memory 82052, :time 27.15, :cpu 28.42, :source Clojure, :bench 2.9}
+;; nil
+;;
+;; ========================================
 
 (defn printfile [fname]
-  (->> (reader-seq (file-reader fname))
-       (map row-parse)
-       (filter #(= "Clojure" (% :source)))
-       printlst))
+  (with-open [r (file-reader fname)]
+    (->> (reader-seq r)
+         (map row-parse)
+         (filter #(= "Clojure" (% :source)))
+         printlst)))
+
+
+
 
 ;;
-;; ループに相当する処理がちゃんとシーケンスとして扱えているはず！
+;; ループに相当する処理がちゃんとシーケンスとして扱るので汎用的
 ;;
 ;; Clojureはmapもfilterも遅延シーケンスを返すようになっているので
 ;; 最後にOutOfMemoryになるリストを返すような処理にしなければ

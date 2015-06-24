@@ -1,47 +1,59 @@
 (ns samples.stream2
-  (:require [clojure.java.io :as io]
-            [clojure.string  :as str]))
+  (:use  [samples.stream1 :only [file-reader]]))
 
 
+
+;; ========================================
 ;;
-;; BufferedReaderをシーケンスとして扱えたら綺麗になるはず！
+;; BufferedReaderを遅延シーケンスに変換する
 ;;
-
-
-(defn file-reader [s]
-  (io/reader (io/file (io/resource s))))
+;; samples.stream2> (reader-seq (file-reader "test.txt"))
+;; ("1.0|C++ g++ #8|9.40|9.40|944|1544" "1.0|C++ g++ #7|9.67|9.67|1052|1545"....)
+;;
+;; ========================================
 
 (defn reader-seq [r]
   (let [line (.readLine r)]
     (if line
-      (cons line (lazy-seq (reader-seq r))))))
+      (cons line (lazy-seq (reader-seq r)))
+      (.close r))))
+
+
+
+;; ========================================
+;;
+;; リストをprintlnする関数を書く
+;;
+;; samples.stream2> (printlst [1 2 3])
+;; 1
+;; 2
+;; 3
+;; nil
+;;
+;; ========================================
 
 (defn printlst [lst]
   (doseq [x lst]
     (println x)))
+
+
+
+;; ========================================
+;;
+;; samples.stream2> (printfile "test.txt")
+;; 1.0|C++ g++ #8|9.40|9.40|944|1544
+;; 1.0|C++ g++ #7|9.67|9.67|1052|1545
+;; ...
+;; nil
+;;
+;; ========================================
 
 (defn printfile [fname]
   (with-open [r (file-reader fname)]
     (printlst (reader-seq r))))
 
 
-;;
-;; parseしてfilterをかけてみる
-;;
-
-(defn row-parse [l]
-  (zipmap [:bench :source :cpu :time :memory :code]
-          (str/split l #"\|")))
-    
-
-(defn printfile [fname]
-  (with-open [r (file-reader fname)]
-    (->> (reader-seq r)
-         (map row-parse)
-         (filter #(= "Clojure" (% :source)))
-         printlst)))
 
 ;;
-;; ループ処理の中にそれぞれの処理を書くよりも簡単になった
+;; ループに相当することが簡潔に書けるようになった
 ;;
-
